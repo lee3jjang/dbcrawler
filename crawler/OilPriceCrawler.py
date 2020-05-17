@@ -14,6 +14,8 @@ class OilPriceCrawler(DBCrawler):
     
     def __init__(self, conn):
         super().__init__(conn)
+        self.table_name = 'OIL_PRICE'
+        self._create_table()
         
     def _create_table(self):
         """
@@ -23,13 +25,13 @@ class OilPriceCrawler(DBCrawler):
         """
         
         query = """
-            CREATE TABLE IF NOT EXISTS OIL_PRICE (
+            CREATE TABLE IF NOT EXISTS {table_name} (
                 BASE_DATE TEXT,
                 CODE TEXT,
                 PRICE NUMBER,
                 PRIMARY KEY (CODE, BASE_DATE)
             )
-        """
+        """.format(table_name=self.table_name)
         self.cur.execute(query)
         self.conn.commit()
         
@@ -121,4 +123,4 @@ class OilPriceCrawler(DBCrawler):
         
         for code in self.codes:
             oil_price = self.get_oil_price(code)
-            oil_price.to_sql(name='OIL_PRICE', con=self.conn, if_exists='replace', index=False)
+            oil_price.to_sql(name=self.table_name, con=self.conn, if_exists='replace', index=False)
