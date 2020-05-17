@@ -1,3 +1,4 @@
 external_data.db
 *.pyc
 __pycache__
+chromedriver.exe

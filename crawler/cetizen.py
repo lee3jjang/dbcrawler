@@ -79,11 +79,11 @@ class PnoCrawler(DBCrawler):
         pno.to_sql(name=self.table_name, con=self.conn, if_exists='replace', index=False)
 
 
-class UsedCarPriceCrawler(DBCrawler):
+class UsedPhonePriceCrawler(DBCrawler):
 
     def __init__(self, conn):
         super().__init__(conn)
-        self.table_name = 'CETIZEN_USED_CAR_PRICE'
+        self.table_name = 'CETIZEN_USED_PHONE_PRICE'
         self._create_table()
     
     def _create_table(self):
@@ -119,14 +119,14 @@ class UsedCarPriceCrawler(DBCrawler):
             Example
             -------
             conn = sqlite3.connect('external_data.db')
-            uspc = UsedCarPriceCrawler(conn)
-            uspc.set_pno(['7296', '7320', '7329'])
+            uppc = UsedPhonePriceCrawler(conn)
+            uppc.set_pno(['7296', '7320', '7329'])
         """
         
         self.pnos = pnos
 
     @staticmethod
-    def get_used_car_price(pnos):
+    def get_used_phone_price(pnos):
         """
             Description
             -----------
@@ -135,9 +135,9 @@ class UsedCarPriceCrawler(DBCrawler):
             Example
             -------
             conn = sqlite3.connect('external_data.db')
-            uspc = UsedCarPriceCrawler(conn)
-            uspc.set_pno(['7296', '7320', '7329'])
-            uspc.run()
+            uppc = UsedPhonePriceCrawler(conn)
+            uppc.set_pno(['7296', '7320', '7329'])
+            uppc.run()
         """
 
         result = []
@@ -158,10 +158,11 @@ class UsedCarPriceCrawler(DBCrawler):
             data = eval(txt)
             for dt in data:
                 result.append((dt['date'], pno, dt['low'], dt['mid'], dt['high']))
-        used_car_price = pd.DataFrame(result, columns=['BASE_DATE', 'PNO', 'LOW', 'MID', 'HIGH']).reset_index(drop=True)
+        used_phone_price = pd.DataFrame(result, columns=['BASE_DATE', 'PNO', 'LOW', 'MID', 'HIGH']).reset_index(drop=True)
+        used_phone_price[['LOW', 'MID', 'HIGH']] = used_phone_price[['LOW', 'MID', 'HIGH']].astype(float)
         end_time = datetime.now()
-        print('[{}] 데이터 수집을 종료합니다. (pno: {}개, 수집시간: {}초, 데이터수: {:,}개)'.format(end_time.strftime('%Y/%m/%d %H:%M:%S'), len(pnos), (end_time-start_time).seconds, len(used_car_price)))
-        return used_car_price
+        print('[{}] 데이터 수집을 종료합니다. (pno: {}개, 수집시간: {}초, 데이터수: {:,}개)'.format(end_time.strftime('%Y/%m/%d %H:%M:%S'), len(pnos), (end_time-start_time).seconds, len(used_phone_price)))
+        return used_phone_price
 
     def run(self):
         """
@@ -175,10 +176,10 @@ class UsedCarPriceCrawler(DBCrawler):
             cur = conn.cursor()
             cur.execute('SELECT PNO FROM CETIZEN_PNO')
             pnos = list(map(lambda x: x[0], cur.fetchall()))
-            uspc = UsedCarPriceCrawler(conn)
-            uspc.set_pno(pnos)
-            uspc.run()
+            uppc = UsedPhonePriceCrawler(conn)
+            uppc.set_pno(pnos)
+            uppc.run()
         """
 
-        used_car_price = self.get_used_car_price(self.pnos)
-        used_car_price.to_sql(name=self.table_name, con=self.conn, if_exists='replace', index=False)
+        used_phone_price = self.get_used_phone_price(self.pnos)
+        used_phone_price.to_sql(name=self.table_name, con=self.conn, if_exists='replace', index=False)
