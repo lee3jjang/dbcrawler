@@ -67,6 +67,11 @@ class PnoCrawler(DBCrawler):
         return pno
 
     def run(self):
+        """
+            conn = sqlite3.connect('external_data.db')
+            pc = PnoCrawler(conn)
+            pc.run()
+        """
         result = []
         for wl in self.wireless.items():
             result.append(self._get_info_wireless(wl))
