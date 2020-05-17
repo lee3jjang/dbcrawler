@@ -50,7 +50,6 @@ class OilPriceCrawler(DBCrawler):
             conn = sqlite3.connect('external_data.db')
             opc = OilPriceCrawler(conn)
             opc.set_code(['OIL_CL', 'OIL_DU', 'OIL_BRT'])
-            
         """
         
         self.codes = codes

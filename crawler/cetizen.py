@@ -74,62 +74,106 @@ class PnoCrawler(DBCrawler):
         pno.to_sql(name=self.table_name, con=self.conn, if_exists='replace', index=False)
 
 
-# class ReleasePriceCrawler(CetizenCrawler):
+class UsedCarPriceCrawler(DBCrawler):
 
-#     def __init__(self, pno):
-#         self.tableName = '출고가정보'
-#         super().__init__()
-#         self.pno = pno
+    def __init__(self, conn):
+        super().__init__(conn)
+        self.table_name = 'CETIZEN_USED_CAR_PRICE'
+        self._create_table()
+    
+    def _create_table(self):
+        """
+            Description
+            -----------
+            테이블 생성
+        """
+        
+        query = """
+            CREATE TABLE IF NOT EXISTS {table_name} (
+            	BASE_DATE TEXT,	
+                PNO TEXT,
+                LOW NUMBER,
+                MID NUMBER,
+                HIGH NUMBER,
+                PRIMARY KEY(BASE_DATE, PNO)
+            )
+        """.format(table_name=self.table_name)
+        self.cur.execute(query)
+        self.conn.commit()
 
-#     def crawling(self, save=True):
-#         rst_list = []
-#         for pl in self.pno:
-#             params = {'act': 'factory_price', 'q': 'info', 'pno': pl}
-#             url = 'https://market.cetizen.com/market.php'
-#             url_params = '{}?{}'.format(url, urlencode(params))
-#             html = req.urlopen(url_params).read().decode('cp949')
-#             soup = BeautifulSoup(html, 'html.parser')
-#             txt = soup.find_all('script', {'type': "text/javascript"})[18].text
-#             start = txt.find('[')
-#             end = txt.find(']')
-#             txt = txt[start:end+1].replace('\r\n\t','')\
-#                 .replace('date', '"date"').replace('value', '"value"').replace(': }', ':None}')
-#             data = eval(txt)
-#             for dt in data:
-#                 rst_list.append((pl, dt['date'], dt['value']))
-#         df = self._add_info(pd.DataFrame(rst_list, columns=['pno', 'date', 'value']))
-#         if save:
-#             self._save(df)
-#         return df
+    def set_pno(self, pnos):
+        """
+            Description
+            -----------
+            수집할 단말기 코드들 설정
+            
+            Input
+            -----
+            pno : 7296(SM-A102N 자급), 7320(SM-G986N U+), 7329(SM-R175)
+            
+            Example
+            -------
+            conn = sqlite3.connect('external_data.db')
+            uspc = UsedCarPriceCrawler(conn)
+            uspc.set_pno(['7296', '7320', '7329'])
+        """
+        
+        self.pnos = pnos
 
+    @staticmethod
+    def get_used_car_price(pnos):
+        """
+            Description
+            -----------
+            크롤러 실행
+            
+            Example
+            -------
+            conn = sqlite3.connect('external_data.db')
+            uspc = UsedCarPriceCrawler(conn)
+            uspc.set_pno(['7296', '7320', '7329'])
+            uspc.run()
+        """
 
-# class UsedPriceCrawler(CetizenCrawler):
+        result = []
+        start_time = datetime.now()
+        
+        print('[{}] 데이터 수집을 시작합니다. (pno: {}개)'.format(start_time.strftime('%Y/%m/%d %H:%M:%S'), len(pnos)))
+        for pno in pnos:
+            params = {'q': 'info', 'pno': pno}
+            url = 'https://market.cetizen.com/market.php'
+            url_params = '{}?{}'.format(url, urlencode(params))
+            html = req.urlopen(url_params).read().decode('cp949')
+            soup = BeautifulSoup(html, 'html.parser')
+            txt = soup.find_all('script', {'type': "text/javascript"})[18].text
+            start = txt.find('[')
+            end = txt.find(']')
+            txt = txt[start:end+1].replace('\r\n\t', '')\
+                .replace('date', '"date"').replace('mid', '"mid"').replace('high', '"high"').replace('low', '"low"')
+            data = eval(txt)
+            for dt in data:
+                result.append((dt['date'], pno, dt['low'], dt['mid'], dt['high']))
+        used_car_price = pd.DataFrame(result, columns=['BASE_DATE', 'PNO', 'LOW', 'MID', 'HIGH']).reset_index(drop=True)
+        end_time = datetime.now()
+        print('[{}] 데이터 수집을 종료합니다. (pno: {}개, 수집시간: {}초, 데이터수: {:,}개)'.format(end_time.strftime('%Y/%m/%d %H:%M:%S'), len(pnos), (end_time-start_time).seconds, len(used_car_price)))
+        return used_car_price
 
-#     def __init__(self, pno):
-#         self.tableName = '중고가정보'
-#         super().__init__()
-#         self.pno = pno
+    def run(self):
+        """
+            Description
+            -----------
+            크롤러 실행
+            
+            Example
+            -------
+            conn = sqlite3.connect('external_data.db')
+            cur = conn.cursor()
+            cur.execute('SELECT PNO FROM CETIZEN_PNO')
+            pnos = list(map(lambda x: x[0], cur.fetchall()))
+            uspc = UsedCarPriceCrawler(conn)
+            uspc.set_pno(pnos)
+            uspc.run()
+        """
 
-#     def crawling(self, save=True):
-#         rst_list = []
-#         for pl in self.pno:
-#             params = {'q': 'info', 'pno': pl}
-#             url = 'https://market.cetizen.com/market.php'
-#             url_params = '{}?{}'.format(url, urlencode(params))
-#             html = req.urlopen(url_params).read().decode('cp949')
-#             soup = BeautifulSoup(html, 'html.parser')
-#             txt = soup.find_all('script', {'type': "text/javascript"})[18].text
-#             start = txt.find('[')
-#             end = txt.find(']')
-#             txt = txt[start:end+1].replace('\r\n\t', '')\
-#                 .replace('date', '"date"').replace('mid', '"mid"').replace('high', '"high"').replace('low', '"low"')
-#             data = eval(txt)
-#             for dt in data:
-#                 rst_list.append((pl, dt['date'], dt['low'], dt['mid'], dt['high']))
-#         df = self._add_info(pd.DataFrame(rst_list, columns=['pno', 'date', 'low', 'mid', 'high']))
-#         if save:
-#             self._save(df)
-#         return df
-
-
-
+        used_car_price = self.get_used_car_price(self.pnos)
+        used_car_price.to_sql(name=self.table_name, con=self.conn, if_exists='replace', index=False)
